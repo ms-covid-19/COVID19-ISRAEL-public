@@ -1,0 +1,18 @@
+
+#pip install -r requirments.txt
+
+# On anaconda:
+# conda install -c conda-forge libspatialindex
+
+dash
+geocoder
+shapely
+googlemaps
+Rtree==0.8.3
+geopandas==0.6.1
+GDAL==2.3.3
+libspatialindex==1.9.3
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+wget
