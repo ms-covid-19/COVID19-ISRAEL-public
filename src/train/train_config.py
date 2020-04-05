@@ -3,6 +3,7 @@ from sklearn.linear_model import LinearRegression
 from src.utils.CONSTANTS import CITY_ID_COL, NEIGHBORHOOD_ID_COL
 from config import UNIFIED_FORMS_FILE
 
+
 lower_cut_date = '2020-03-23'
 upper_cut_date = '2020-04-01'
 

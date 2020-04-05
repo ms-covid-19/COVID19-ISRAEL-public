@@ -73,7 +73,7 @@ def create_accumulative_df(all_data_df, mode='upto', n_days=3):
         elif mode == 'range':
             dates_included_list = [item for item in sorted(aggregation_dates) if item <= last_date]
             if len(dates_included_list) > n_days:
-                dates_included_list = dates_included_list[-1 * n_days:]
+                dates_included_list = dates_included_list[-1*n_days:]
         else:
             raise ValueError
 
@@ -91,16 +91,17 @@ def create_accumulative_df(all_data_df, mode='upto', n_days=3):
 
 
 def main(model_features_list=None, imputation_model=False, agg_col=agg_col):
+
     slicer = pd.IndexSlice
 
     all_data_df = pd.read_csv(UNIFIED_FORMS_FILE)
 
     # rows validity checks # todo move to amit's pipeline
     all_data_df = all_data_df[(all_data_df['age'].astype(float) > 0) & (all_data_df['age'].astype(float) < 100)]
-    all_data_df['gender'] = (all_data_df['gender'] == 'M').astype(
-        int)  # todo change column names to constants from Amit
+    all_data_df['gender'] = (all_data_df['gender'] == 'M').astype(int) # todo change column names to constants from Amit
     all_data_df = all_data_df[all_data_df[agg_col].notnull()]
     # todo change based on aggregated df too and get from amit's pipeline
+
 
     # add time step column - currently by date
     all_data_df = add_date_column(all_data_df)
@@ -111,16 +112,18 @@ def main(model_features_list=None, imputation_model=False, agg_col=agg_col):
     if upper_cut_date is not None:
         all_data_df = all_data_df[all_data_df[DATE_COL] < upper_cut_date]
 
+
     full_df = create_accumulative_df(all_data_df)
 
     if not model_features_list:
         model_features_list = ['age', 'gender'] + [item for item in full_df.columns.to_list()  # todo  'body_temp'
-                                                   if ('symptom' in item) or ('condition' in item) or
-                                                   ('smoking' in item) or ('isolation' in item) or (
-                                                           'patient' in item) or ('lms' in item)]
+                                            if ('symptom' in item) or ('condition' in item) or
+                                            ('smoking' in item) or ('isolation' in item) or (
+                                                    'patient' in item) or ('lms' in item)]
 
     if model_features_list and not set(model_features_list).issubset(set(full_df.columns.tolist())):
         raise Exception("all_features not in passed dataframe columns")
+
 
     X_df = full_df.loc[slicer[:, train_date], :].dropna(axis=0)
     y_df = full_df.loc[slicer[X_df[agg_col], label_date], :].dropna(axis=0)
@@ -181,3 +184,6 @@ def main(model_features_list=None, imputation_model=False, agg_col=agg_col):
 
 if __name__ == '__main__':
     current_model = main(model_features_list, imputation_model=True, agg_col=agg_col)
+
+
+
