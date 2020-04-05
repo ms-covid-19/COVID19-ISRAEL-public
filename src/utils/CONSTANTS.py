@@ -1,4 +1,3 @@
-
 # Map constants
 COLORS = ['#bae4b3', '#74c476', '#08519c', '#c51b8a', '#7a0177']
 
@@ -47,23 +46,6 @@ ALL_SYMPTOM_LIST = ['Fever', 'Cough', 'Shortness of breath (SOB)/ Dyspnea', 'Fat
 ALL_DISEASE_LIST = ['Comorbidities', 'HTN', 'DM', 'IHD/ CVD',
                     'COPD', 'Asthma', 'Chronic hepatitis', 'Malignancy', 'Immunodeficency',
                     'CKD', 'Smoking - current', 'Former smoker']
-
-
-# For Table1
-TABLE_COLS = ['Age', 'Gender', BODY_TEMP, HIGH_FEVER, ISOLATION,
-              SMOKING, PRIOR_CONDITIONS, FEEL_GOOD, PRIOR_CONDITIONS,
-              NAUSEA, MUSCLE_PAIN, RUNNY_NOSE, FATIGUE, BREATH_SHORTNESS,
-              COUGH, DIARRHEA]
-
-TABLE_LABELS = ['Age (years)', 'Male', 'Body temperature (Celcius)', 'Body temperature above 38',
-                'Isolation', 'Smoking history (previously smoked/ currently smoking)',
-                'Presence of a chronic medical conditions',
-                'No symptoms (Feel good)', 'Nausea and vomiting',
-                'Muscle pains', 'Rhinorrhea or nasal congestion',
-                'Fatigue', 'Shortness of breath',
-                'Cough', 'Diarrhea']
-
-TABEL_COLS_TYPE = ['continuous', 'count_perc', 'continuous', 'count_perc'] + ['count_perc']*11 + ['continuous']
 
 # Patients data
 TIME_STAY_HR = 'time_stay'

@@ -32,7 +32,7 @@ def check_genders(df: DataFrame) -> DataFrame:
 def remove_bad_ages(df: DataFrame) -> DataFrame:
     """Removes rows with ages that are not between 0-100."""
     df['age'] = [float_or(x, -1) for x in df['age'].values]
-    df_good = df[(df['age'] >= 0) & (df['age'] <= 100)]
+    df_good = df[(df['age'] >= 0) & (df['age'] <= 120)]
     print(f'Removed {len(df) - len(df_good)} rows with bad ages')
     return df_good
 
