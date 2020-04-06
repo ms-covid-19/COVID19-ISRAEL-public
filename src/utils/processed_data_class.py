@@ -40,6 +40,7 @@ class ProcessedData(object):
         else:
             return ANCHOR_DATE + pd.to_timedelta(date * 86400 + time, unit='s')
 
+
     @staticmethod
     def set_index(df, old_index_to_columns=False, sort_index_flag=True):
         """
@@ -51,9 +52,7 @@ class ProcessedData(object):
         """
         df = df.reset_index(drop=~old_index_to_columns)
         if len(df.columns.intersection(INDEX_LEVELS)) < len(INDEX_LEVELS):
-            raise ValueError(
-                'Not all new index levels {} are present in columns. If some the index levels were in the old index, make sure old_index_to_columns is set to True'.format(
-                    INDEX_LEVELS))
+            raise ValueError('Not all new index levels {} are present in columns. If some the index levels were in the old index, make sure old_index_to_columns is set to True'.format(INDEX_LEVELS))
         for i in INDEX_LEVELS:
             if not pd.api.types.is_numeric_dtype(df[i]):
                 raise TypeError('Column {} should be numeric!'.format(i))
@@ -108,9 +107,8 @@ class ProcessedData(object):
         :param eng: whether to include English name
         :return: dataframe with city names
         """
-        cities_mtd = pd.read_csv(os.path.join(NEW_PROCESSED_DATA_DIR, 'cities_meta.csv'), low_memory=False)
-        cities_mtd = cities_mtd.rename(
-            columns={'OBJECTID_1': 'city_id', 'SHEM_YISHU': 'city_heb', 'SHEM_YIS_1': 'city_eng'})
+        cities_mtd = pd.read_csv(os.path.join(NEW_PROCESSED_DATA_DIR, 'cities_meta.csv'))
+        cities_mtd = cities_mtd.rename(columns={'OBJECTID_1': 'city_id', 'SHEM_YISHU': 'city_heb', 'SHEM_YIS_1': 'city_eng'})
         sel_columns = []
         if heb:
             sel_columns.extend(['city_heb'])
@@ -121,7 +119,7 @@ class ProcessedData(object):
 
 
 if __name__ == '__main__':
-    olddf = pd.read_csv(os.path.join(NEW_PROCESSED_DATA_DIR, 'COVID_19-ALL_with_location.csv'), low_memory=False)
+    olddf = pd.read_csv(os.path.join(NEW_PROCESSED_DATA_DIR, 'COVID_19-ALL_with_location.csv'))
     newdf = ProcessedData.convert_new_processed_all_with_location(olddf)
     newdf_with_city_names = ProcessedData.add_city_name(newdf)
     pass

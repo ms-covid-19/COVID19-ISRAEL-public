@@ -151,8 +151,8 @@ def load_figure(geolayers, centers, level, colorby, selected_date, lang):
     else:
         centers['hover'] = centers['_'.join([level, 'id'])].astype(str) + ' ' + centers[colorby].round(2).fillna(' ').astype(str)
     log_.info('Filtering polygons and assigning colors...')
-    geolayers = [dict(geolayers[str(df[level + '_id'].iloc[i])], color=df[colorcol].iloc[i][:-2]) for i in range(len(df))]
-    # geolayers = list(geolayers.values())
+    # geolayers = [geolayers[str(df[level + '_id'].iloc[i])] for i in range(len(df))]
+    geolayers = [dict(geolayers[str(df[level + '_id'].iloc[i])], color=df[colorcol].iloc[i]) for i in range(len(df))]
 
     # geolayers = [geolayers[str(i)] for i in range(len(df))]
 

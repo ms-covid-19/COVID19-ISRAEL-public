@@ -40,7 +40,7 @@ def load_piechart(colorby, selected_date, tag, lang):
         x=' ' + df[id].astype(str),
         y=df[colorby],
         # y=df[colorby + '_count'],
-        marker_color=df[colorby + '_color'].str[:7]  # marker color can be a single color value or an iterable
+        marker_color=df[colorby + '_color']  # marker color can be a single color value or an iterable
     )], layout=dict(autosize=True, yaxis_title=feature_translations[colorby][lang + "_short"]))
     return fig
 

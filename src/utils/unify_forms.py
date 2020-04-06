@@ -6,8 +6,8 @@ import csv
 from enum import Enum, auto
 from typing import Dict, Set
 
-from src.utils.unify_time import unify_time
 from src.utils.CONSTANTS import BODY_TEMP_THRESHOLD
+from src.utils.unify_time import unify_time
 
 
 class Symptom(Enum):
@@ -28,6 +28,9 @@ class Symptom(Enum):
     DIARRHEA = auto()
     STOMACH = auto()
     FEVER = auto()
+    CHILLS = auto()
+    CONFUSION = auto()
+    SMELL_OR_TASTE_LOSS = auto()
 
 
 class Condition(Enum):
@@ -281,6 +284,10 @@ _bot_symptom_mapping = {
     'symptoms_infirmity': Symptom.INFIRMITY,
     'symptoms_diarrhea': Symptom.DIARRHEA,
     'symptoms_nausea_and_vomiting': [Symptom.NAUSEA_VOMITING, Symptom.STOMACH],
+    'symptoms_chills': Symptom.CHILLS,
+    'symptoms_confusion': Symptom.CONFUSION,
+    'symptoms_tiredness_or_fatigue': Symptom.FATIGUE,
+    'symptoms_smell_taste_loss': Symptom.SMELL_OR_TASTE_LOSS,
     # 'symptoms_other':Symptom.???,
 }
 

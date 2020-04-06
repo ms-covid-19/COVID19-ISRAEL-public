@@ -24,7 +24,8 @@ color_scale = [[i / (len(COLORS) - 1), COLORS[i]] for i in range(len(COLORS))]
 features_to_perc = ['gender', 'symptom_fever', 'symptom_shortness_of_breath', 'symptom_runny_nose',
                             'symptom_cough',
                             'symptom_fatigue', 'symptom_nausea_vomiting', 'symptom_muscle_pain', 'symptom_sore_throat',
-                            'symptom_headache', 'symptom_diarrhea', 'smoking_currently', 'isolation_not_isolated']
+                            'symptom_headache', 'symptom_diarrhea', 'smoking_currently', 'isolation_not_isolated',
+                    'symptom_ratio', 'symptom_ratio_weighted']
 
 # selected_features = ['age',
 #  'body_temp',

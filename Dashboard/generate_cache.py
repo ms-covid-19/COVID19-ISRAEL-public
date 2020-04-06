@@ -5,18 +5,20 @@ import os
 import branca.colormap as cm
 import geopandas as gpd
 import pandas as pd
+import numpy as np
 
 from Dashboard.data import COLORS, features_to_perc, NDAYS_SMOOTHING, MIN_OBSERVATIONS_CITY, \
     MIN_OBSERVATIONS_NEIGHBORHOOD
 from config import DASH_CACHE_DIR, LAMAS_DATA, PROCESSED_DATA_DIR
 from src.utils.aggregations import mean_if_enough_observations
-from src.utils.processed_data_class import ProcessedData
+from src.utils.processed_data_class import ProcessedData, ANCHOR_DATE
 
 log_ = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 
 COLOR_MAP = lambda vmin, vmax: cm.LinearColormap(COLORS, vmin=vmin, vmax=vmax)
+MAIN_FEATURE = 'symptom_ratio_weighted'
 
 
 class DashCacheGenerator(object):
@@ -45,25 +47,34 @@ class DashCacheGenerator(object):
     def cache_hasadna(df):
         df = ProcessedData.add_city_name(df).set_index(['city_heb', 'city_eng'], append=True)\
             .reorder_levels(['city_id', 'city_heb', 'city_eng', 'neighborhood_id', 'date', 'time'])
-        symptom_ratio_wei_norm = df['symptom_ratio_weighted'] / df['symptom_ratio_weighted'].max() * 100
-        symptom_ratio_wei_norm_agg = symptom_ratio_wei_norm.groupby(['city_id', 'city_heb', 'city_eng']).agg(['mean', 'std', 'count'])
-        symptom_ratio_wei_norm_agg.to_csv(os.path.join(PROCESSED_DATA_DIR, 'symptom_ratio_wei_norm_agg_all_days.csv'))
-        symptom_ratio_wei_norm_agg.to_json(os.path.join(PROCESSED_DATA_DIR, 'symptom_ratio_wei_norm_agg_all_days.json'))
+        symptom_ratio_wei_norm = df[MAIN_FEATURE]
 
-        ld = symptom_ratio_wei_norm.index.get_level_values('date').max()
-        symptom_ratio_wei_norm_agg_ld = symptom_ratio_wei_norm.to_frame()\
-            .query("date == @ld")['symptom_ratio_weighted']\
-            .groupby(['city_id', 'city_heb', 'city_eng'])\
-            .agg(['mean', 'std', 'count'])
-        symptom_ratio_wei_norm_agg_ld.to_csv(os.path.join(PROCESSED_DATA_DIR, 'symptom_ratio_wei_norm_agg_last_day.csv'))
-        symptom_ratio_wei_norm_agg_ld.to_json(os.path.join(PROCESSED_DATA_DIR, 'symptom_ratio_wei_norm_agg_last_day.json'))
+        def cache_date(gdf, folder, fn=None):
+            gdf = gdf.reset_index()
+            if fn is None:
+                fn = (ANCHOR_DATE + pd.Timedelta(days=gdf['date'].iloc[0])).strftime(format="%Y-%m-%d")
+            gdf.rename(columns={'mean': 'prediction'}).to_csv(os.path.join(PROCESSED_DATA_DIR, 'hasadna', folder, fn + '.csv'), index=False)
+
+        def cache_gb(gpb, folder, daily_threshold=50):
+            symptom_ratio_wei_norm_agg = gpb.agg(['mean', 'count'])
+            symptom_ratio_wei_norm_agg['confidence'] = 1 - np.sqrt((4 * gpb.var(ddof=0)))
+            symptom_ratio_wei_norm_agg.loc[symptom_ratio_wei_norm_agg['count'] == 1, 'confidence'] = 0
+            # symptom_ratio_wei_norm_agg = symptom_ratio_wei_norm_agg[symptom_ratio_wei_norm_agg >= daily_threshold]#.reindex(symptom_ratio_wei_norm_agg.index)
+            symptom_ratio_wei_norm_agg.groupby('date').apply(lambda ddf: cache_date(ddf, folder=folder))
+            ld = symptom_ratio_wei_norm_agg.index.get_level_values('date').max()
+            cache_date(symptom_ratio_wei_norm_agg.query("date == @ld"), folder=folder, fn='latest')
+
+        cache_gb(symptom_ratio_wei_norm.groupby(['date', 'city_id', 'city_heb', 'city_eng']), folder='city', daily_threshold=50)
+        cache_gb(symptom_ratio_wei_norm.groupby(['date', 'neighborhood_id']), folder='neighborhood', daily_threshold=10)
+
+
         pass
 
     def process_data(self, data):
         # data = ProcessedData.convert_new_processed_bot_and_questionnaire(data)
         data = ProcessedData.convert_processed_united(data)
-        data[features_to_perc] = data[features_to_perc] * 100
         self.cache_hasadna(data)
+        data[features_to_perc] = data[features_to_perc] * 100
         return data
 
     @staticmethod
@@ -81,59 +92,83 @@ class DashCacheGenerator(object):
 
     def aggregate_polygon(self, gdf, level):
         undf = self.day_roller(gdf)
-        if level == 'city_id':
-            return undf.groupby('date', as_index=False, group_keys=False).apply(lambda x: mean_if_enough_observations(x, min_observations=MIN_OBSERVATIONS_CITY))
-        else:
-            return undf.groupby('date', as_index=False, group_keys=False).apply(
-                lambda x: mean_if_enough_observations(x, min_observations=MIN_OBSERVATIONS_NEIGHBORHOOD))
+        min_obs = MIN_OBSERVATIONS_CITY if level == 'city_id' else MIN_OBSERVATIONS_NEIGHBORHOOD
+        gpb = undf.groupby('date', as_index=False, group_keys=False)
+        undf = gpb.apply(lambda x: mean_if_enough_observations(x, min_observations=min_obs))
+        return undf
 
     def count_polygon(self, gdf):
         undf = self.day_roller(gdf).set_index('date', append=True)
         return undf.groupby('date').count()
 
+    @staticmethod
+    def filter_by_min_obs(df, min_obs):
+        return df[df[(df.columns[0][0], 'count')] >= min_obs]
+
+    def count_filter(self, agg_data, level):
+        log_.info('Filtering by min count...')
+        if level == 'city_id':
+            min_obs = MIN_OBSERVATIONS_CITY
+        elif level == 'neighborhood_id':
+            min_obs = MIN_OBSERVATIONS_NEIGHBORHOOD
+        else:
+            raise ValueError('level value is not allowed')
+        agg_data = agg_data.groupby(level=0, axis=1).apply(lambda g: self.filter_by_min_obs(g, min_obs=min_obs))
+        assert agg_data.columns.nlevels == 3
+        agg_data.columns = agg_data.columns.droplevel(0)
+        return agg_data
+
     def aggregate_data(self, data, level):
         log_.info('Start processing level {}'.format(level))
-        if level == 'city_id':
-            data = data.reset_index('neighborhood_id', drop=True)
-        else:
-            data = data.reset_index('city_id', drop=True)
-        log_.info('Counting...')
-        gdf = data.select_dtypes('number').sort_index().reset_index('date').groupby(level)
-        data_count = gdf.apply(self.count_polygon)
-
-        # tmp = data_count[['smoking']]
-        # sel_date = (pd.to_datetime('2020-03-20 00:00:00') - ANCHOR_DATE).days
-        # tmp = tmp.query('date == @sel_date').sort_values('smoking', ascending=False)
-
-        log_.info('Counting finished!')
+        log_.info('Rolling...')
+        if 'Unnamed: 0.1' in data.columns:
+            data = data.drop(columns=['Unnamed: 0.1'])
+        rolled = data.select_dtypes('number').reset_index('date').groupby(level).apply(self.day_roller)
         log_.info('Aggregating...')
-        gdf = data.select_dtypes('number').sort_index().reset_index().groupby(level, as_index=False, group_keys=False)
-        data_agg = gdf.apply(self.aggregate_polygon, level=level)
+        gpb = rolled.set_index('date', append=True).groupby([level, 'date'])
+        agg_data = gpb.agg(['mean', 'count'])
+        log_.info('Adding weighted symptoms ratio std...')
+        agg_data = agg_data.join(gpb[MAIN_FEATURE].agg('std').rename((MAIN_FEATURE, 'std')))
+        return agg_data, gpb
+
+    def flatten_add_colors(self, agg_data, gpb):
+        agg_data.columns = ['_'.join(col).replace('_mean', '') for col in agg_data.columns.values]
+        colors = agg_data.filter(regex="^(?!.*_count).*$").groupby('date').apply(lambda gdf: gdf.apply(self.get_color_series))  # columns not containing colors
+        agg_data = agg_data.join(colors, rsuffix='_color')
         log_.info('Aggregating finished!')
-        data_agg = data_agg.dropna(how='all').drop(columns=['time']).set_index([level, 'date'])
-        return data_count, data_agg
+        return agg_data
 
-    def convert_cache_lamas(self, tag, valid_ids):
-        if tag == 'city':
-            lamas_fn = os.path.join(LAMAS_DATA, 'yishuvimdemog2012.shp')
-        else:
-            lamas_fn = os.path.join(LAMAS_DATA, 'neighbor_polygons.shp')
-        gpdf = gpd.read_file(lamas_fn, encoding='utf-8')[['OBJECTID_1', 'geometry']]
-        gpdf = gpdf.rename(columns={'OBJECTID_1': 'id'})
+    def geodata_hasadna(self, df, gpdf, centers, tag):
+        df = df[[(MAIN_FEATURE, 'mean'), (MAIN_FEATURE, 'count'), (MAIN_FEATURE, 'std')]]
+        df.columns = df.columns.droplevel(0)
+        latest = df.index.get_level_values('date').max()
+        df = df.query("date == @latest")
+        assert df.index.names == [tag + '_id', 'date']
+        df.index.names = ['id', 'date']
+        df = df.join(gpdf).join(centers).reset_index()
+        quant_trans = lambda ser: ((ser - ser.quantile(0.05)) / ser.quantile(0.95)).clip(0, 1)
+        df['factor_relnum'] = df['count'] / df['population']
+        df['factor_variance'] = 1 / np.exp(-(df['std']) / 100)
+        df['confidence'] = quant_trans(df['factor_relnum'] * df['factor_variance'])
+
+        df = df.rename(columns={'confidence': 'latest_confidence',
+                                'mean': 'latest_ratio',
+                                'count': 'latest_reports',
+                                })
+        valid_cols = ['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports', 'center', 'geometry']
+        df = df.filter(valid_cols)
+        log_.info('geopandas shape {}'.format(df.shape))
+        gpd.GeoDataFrame(df.head()).to_file(os.path.join(DASH_CACHE_DIR, tag + '_hasadna.json'), driver="GeoJSON")
+
+    def convert_cache_lamas(self, df, gpdf, centers, tag):
         # write only meaningful polygons (intersect with agg_data)
-        gpdf = gpdf.query("id in @valid_ids").reset_index(drop=True)
-        gpdf['geometry'] = gpdf['geometry'].apply(lambda x: x.buffer(0))
-        centers = gpdf.set_index('id')
-        centers = ProcessedData.add_city_name(centers)
-        #
-        tmp = centers.query("city_eng=='REHOVOT'")
-
-        centers['geometry'] = centers['geometry'].centroid
+        valid_ids = df.index.get_level_values(tag + '_id').unique()
+        gpdf = gpdf.query("id in @valid_ids")
+        gpdf.to_file(os.path.join(DASH_CACHE_DIR, tag + '_polygons.json'), driver="GeoJSON")
+        centers = centers.query("id in @valid_ids")
         centers['lat'] = centers['geometry'].y
         centers['lon'] = centers['geometry'].x
         centers.reset_index().drop(columns=['geometry']).to_feather(os.path.join(DASH_CACHE_DIR, tag + '_centers.feather'))
-        gpdf[['id', 'geometry']] \
-            .to_file(os.path.join(DASH_CACHE_DIR, tag + '_polygons.json'), driver="GeoJSON")
         self.property_to_id_cache_geolayers(folder=DASH_CACHE_DIR, tag=tag)
 
     def write_to_cache(self, df, tag):
@@ -146,34 +181,58 @@ class DashCacheGenerator(object):
         df.to_feather(fn)
 
     @staticmethod
-    def edit_data(data):
-        for col in ['symptom_ratio', 'symptom_ratio_weighted']:
-            data[col] = (data[col] / data[col].max()) * 100
-        return data
-
-    @staticmethod
     def get_color_series(ser):
         f = COLOR_MAP(vmin=ser.min(), vmax=ser.max())
-        return ser.dropna().apply(f).reindex(ser.index)
+        color_ser = ser.dropna().apply(f).str[:7]
+        return color_ser.reindex(ser.index)
 
-    def concat_agg_count(self, count_df, agg_df):
-        color_df = agg_df.groupby('date').apply(lambda gdf: gdf.apply(self.get_color_series))
-        df = agg_df.join(count_df, rsuffix='_count').join(color_df, rsuffix='_color')
-        return df
+    # def concat_agg_count(self, count_df, agg_df):
+    #     color_df = agg_df.groupby('date').apply(lambda gdf: gdf.apply(self.get_color_series))
+    #     df = agg_df.join(count_df, rsuffix='_count').join(color_df, rsuffix='_color')
+    #     return df
+
+    @staticmethod
+    def read_lamas_city():
+        lamas_fn = os.path.join(LAMAS_DATA, 'yishuvimdemog2012.shp')
+        gpdf = gpd.read_file(lamas_fn, encoding='utf-8')[['OBJECTID_1', 'geometry', 'Pop_Total']]
+        gpdf = gpdf.rename(columns={'OBJECTID_1': 'id', 'Pop_Total': 'population'})
+        return gpdf
+
+    @staticmethod
+    def read_lamas_neighborhood():
+        lamas_fn = os.path.join(LAMAS_DATA, 'neighbor_polygons.shp')
+        gpdf = gpd.read_file(lamas_fn, encoding='utf-8')[['OBJECTID_1', 'geometry', 'pop_thou']]
+        gpdf['population'] = gpdf['pop_thou'] * 1000
+        gpdf = gpdf.drop(columns=['pop_thou']).rename(columns={'OBJECTID_1': 'id'})
+        return gpdf
+
+    @staticmethod
+    def process_lamas(gpdf):
+        gpdf['geometry'] = gpdf['geometry'].apply(lambda x: x.buffer(0))
+        centers = gpdf.set_index('id')[['geometry']]
+        centers = ProcessedData.add_city_name(centers)
+        centers['geometry'] = centers['geometry'].centroid
+        return gpdf, centers
+
+    def routine(self, data, tag):
+        level = tag + '_id'
+        if tag == 'city':
+            gpdf = self.read_lamas_city()
+        else:
+            gpdf = self.read_lamas_neighborhood()
+        gpdf, centers = self.process_lamas(gpdf)
+        agg_data, gpb = self.aggregate_data(data, level=level)
+        # self.geodata_hasadna(df=agg_data, gpdf=gpdf.set_index('id'), centers=centers.rename(columns={'geometry': 'center'}), tag=tag)
+        agg_data = self.count_filter(agg_data=agg_data, level=level)
+        agg_data = self.flatten_add_colors(agg_data, gpb=gpb)
+        self.write_to_cache(agg_data, tag=tag)
+        self.convert_cache_lamas(df=agg_data, gpdf=gpdf, centers=centers, tag=tag)
 
     def cache_city(self, data):
-        count_data, agg_data = self.aggregate_data(data, level='city_id')
-        agg_data = self.edit_data(agg_data)
-        df = self.concat_agg_count(count_data, agg_data)
-        self.write_to_cache(df, tag='city')
-        self.convert_cache_lamas(tag='city', valid_ids=df.index.get_level_values('city_id').unique())
+        self.routine(data, tag='city')
 
     def cache_neighborhood(self, data):
-        count_data, agg_data = self.aggregate_data(data, level='neighborhood_id')
-        agg_data = self.edit_data(agg_data)
-        df = self.concat_agg_count(count_data, agg_data)
-        self.write_to_cache(df, tag='neighborhood')
-        self.convert_cache_lamas(tag='neighborhood', valid_ids=df.index.get_level_values('neighborhood_id').unique())
+        self.routine(data, tag='neighborhood')
 
     @staticmethod
     def property_to_id_cache_geolayers(folder, tag):
