@@ -92,16 +92,12 @@ def merge_files(old, new):
 
 
 if __name__ == "__main__":
-
-    patient_data = pd.read_csv(os.path.join(PATIENTS_RAW_DIR, 'data.csv'))
     new_patient_data = pd.read_csv(os.path.join(PATIENTS_RAW_DIR, 'מיקומי חשיפה לקורונה.csv'))
-    patient_data.rename(columns=COLS_DICT, inplace=True)
     new_patient_data.rename(columns=COLS_DICT, inplace=True)
 
     times_col = 'שעות שהייה'
 
     new_patient_data = preprocess_new_file(new_patient_data, date_col, times_col, start_time_col, end_time_col)
-    patient_data = preprocess_old_file(patient_data)
     new = process_patient_data(new_patient_data, date_col, start_time_col, end_time_col)
-    old = process_patient_data(patient_data, date_col, start_time_col, end_time_col)
+    old = pd.read_csv(os.path.join(PATIENTS_PROCESSED_DIR, 'confirmed_patients_with_polygons.csv'))
     merge_files(old, new)

@@ -12,7 +12,7 @@ FEATURE = 'symptom_ratio_weighted'
 SELECTED_DATE = max_date
 
 
-class top_bottom_cities(object):
+class TopBottomCities(object):
     def __init__(self):
         self.df = pd.read_feather(os.path.join(DASH_CACHE_DIR, 'city.feather'),
                                   columns=['date', 'city_id', 'city_heb', 'city_eng', FEATURE, FEATURE + '_count',
@@ -32,7 +32,7 @@ class top_bottom_cities(object):
                 # yaxis_title="y Axis Title"
             ))
         fig.write_html(os.path.join(folder, fn + '.html'))
-        fig.write_image(os.path.join(folder, fn + '.png'))
+        fig.write_image(os.path.join(folder, fn + '.png'), scale=5)
 
     def make_figures(self):
         lddf = self.df.query("date == @SELECTED_DATE")
@@ -56,5 +56,5 @@ class top_bottom_cities(object):
 
 
 if __name__ == '__main__':
-    tbc = top_bottom_cities()
+    tbc = TopBottomCities()
     tbc.make_figures()

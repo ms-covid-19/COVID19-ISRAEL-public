@@ -6,10 +6,10 @@ import pandas as pd
 from dash.dependencies import Output, Input, State
 
 from Dashboard.app import app
+from Dashboard.data import html_align_dict
 
 from Dashboard.functions.load_figures import load_piechart
 from Dashboard.functions.map import load_figure
-from Dashboard.layout import html_align_dict
 from Dashboard.translations import layout_elements, feature_translations, level_options
 from config import DASH_CACHE_DIR
 
@@ -86,6 +86,13 @@ def text_data_resolution(lang):
 )
 def text_date_selector(lang):
     return layout_elements['Date selector'][lang], {'textAlign': html_align_dict[lang]}
+
+# @app.callback(
+#     Output("dashboard_title", "children"),
+#     [Input('language_tab', 'value')]
+# )
+# def text_dashboard_title(lang):
+#     return layout_elements['dashboard_title'][lang]
 
 
 @app.callback(

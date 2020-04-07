@@ -10,7 +10,6 @@ import numpy as np
 from Dashboard.data import COLORS, features_to_perc, NDAYS_SMOOTHING, MIN_OBSERVATIONS_CITY, \
     MIN_OBSERVATIONS_NEIGHBORHOOD
 from config import DASH_CACHE_DIR, LAMAS_DATA, PROCESSED_DATA_DIR
-from src.utils.aggregations import mean_if_enough_observations
 from src.utils.processed_data_class import ProcessedData, ANCHOR_DATE
 
 log_ = logging.getLogger(__name__)
@@ -78,9 +77,8 @@ class DashCacheGenerator(object):
         return data
 
     @staticmethod
-    def day_roller(gdf, ndays=NDAYS_SMOOTHING):
+    def day_roller(gdf, max_day, ndays=NDAYS_SMOOTHING):
         # append the dataframe with itself shifted 1, 2, ..., ndays forward
-        max_day = gdf['date'].max()
         add_dfs = []
         for i in range(1, ndays):
             tmp = gdf.copy()
@@ -90,16 +88,16 @@ class DashCacheGenerator(object):
         # calculate mean for columns with enough observations
         return undf
 
-    def aggregate_polygon(self, gdf, level):
-        undf = self.day_roller(gdf)
-        min_obs = MIN_OBSERVATIONS_CITY if level == 'city_id' else MIN_OBSERVATIONS_NEIGHBORHOOD
-        gpb = undf.groupby('date', as_index=False, group_keys=False)
-        undf = gpb.apply(lambda x: mean_if_enough_observations(x, min_observations=min_obs))
-        return undf
+    # def aggregate_polygon(self, gdf, level):
+    #     undf = self.day_roller(gdf)
+    #     min_obs = MIN_OBSERVATIONS_CITY if level == 'city_id' else MIN_OBSERVATIONS_NEIGHBORHOOD
+    #     gpb = undf.groupby('date', as_index=False, group_keys=False)
+    #     undf = gpb.apply(lambda x: mean_if_enough_observations(x, min_observations=min_obs))
+    #     return undf
 
-    def count_polygon(self, gdf):
-        undf = self.day_roller(gdf).set_index('date', append=True)
-        return undf.groupby('date').count()
+    # def count_polygon(self, gdf):
+    #     undf = self.day_roller(gdf).set_index('date', append=True)
+    #     return undf.groupby('date').count()
 
     @staticmethod
     def filter_by_min_obs(df, min_obs):
@@ -123,7 +121,10 @@ class DashCacheGenerator(object):
         log_.info('Rolling...')
         if 'Unnamed: 0.1' in data.columns:
             data = data.drop(columns=['Unnamed: 0.1'])
-        rolled = data.select_dtypes('number').reset_index('date').groupby(level).apply(self.day_roller)
+        max_day = data.index.get_level_values('date').max()
+        rolled = data.select_dtypes('number').reset_index('date')\
+            .groupby(level, as_index=False, group_keys=False)\
+            .apply(lambda gdf: self.day_roller(gdf, max_day=max_day))
         log_.info('Aggregating...')
         gpb = rolled.set_index('date', append=True).groupby([level, 'date'])
         agg_data = gpb.agg(['mean', 'count'])
@@ -141,24 +142,36 @@ class DashCacheGenerator(object):
     def geodata_hasadna(self, df, gpdf, centers, tag):
         df = df[[(MAIN_FEATURE, 'mean'), (MAIN_FEATURE, 'count'), (MAIN_FEATURE, 'std')]]
         df.columns = df.columns.droplevel(0)
-        latest = df.index.get_level_values('date').max()
+        latest = (pd.Timestamp.today().normalize() - ANCHOR_DATE).days - 1  # last day
         df = df.query("date == @latest")
         assert df.index.names == [tag + '_id', 'date']
         df.index.names = ['id', 'date']
-        df = df.join(gpdf).join(centers).reset_index()
+        df = gpdf.join(df).join(centers).reset_index()
+        df['count'] = df['count'].fillna(0)
         quant_trans = lambda ser: ((ser - ser.quantile(0.05)) / ser.quantile(0.95)).clip(0, 1)
         df['factor_relnum'] = df['count'] / df['population']
         df['factor_variance'] = 1 / np.exp(-(df['std']) / 100)
         df['confidence'] = quant_trans(df['factor_relnum'] * df['factor_variance'])
-
+        df['confidence'] = df['confidence'].fillna(0)
+        df['mean'] = df['mean'] / 100
         df = df.rename(columns={'confidence': 'latest_confidence',
                                 'mean': 'latest_ratio',
                                 'count': 'latest_reports',
                                 })
         valid_cols = ['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports', 'center', 'geometry']
         df = df.filter(valid_cols)
+        df[['latest_ratio', 'latest_confidence']] = (df[['latest_ratio', 'latest_confidence']] * 100).round()
         log_.info('geopandas shape {}'.format(df.shape))
-        gpd.GeoDataFrame(df.head()).to_file(os.path.join(DASH_CACHE_DIR, tag + '_hasadna.json'), driver="GeoJSON")
+        # gpd.GeoDataFrame(df).to_file(os.path.join(DASH_CACHE_DIR, tag + '_hasadna.json'), driver="GeoJSON")
+        # with open(os.path.join(DASH_CACHE_DIR, tag + '_hasadna2.json'), 'w') as f:
+        #     f.write(gpd.GeoDataFrame(df).to_json())
+       #  df.query('city_eng == "JERUSALEM"')[['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports',
+       # 'geometry']].to_file(os.path.join(DASH_CACHE_DIR, tag + '_test.geojson'), driver="GeoJSON")
+        df = df.query("id != 1")
+        df[['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports',
+       'geometry']].to_file(os.path.join(DASH_CACHE_DIR, tag + '_hasadna.geojson'), driver="GeoJSON")
+       #  gpd.GeoDataFrame(df[['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports',
+       # 'center']]).to_file(os.path.join(DASH_CACHE_DIR, tag + '_centers_hasadna.json'), driver="GeoJSON")
 
     def convert_cache_lamas(self, df, gpdf, centers, tag):
         # write only meaningful polygons (intersect with agg_data)
@@ -222,7 +235,7 @@ class DashCacheGenerator(object):
             gpdf = self.read_lamas_neighborhood()
         gpdf, centers = self.process_lamas(gpdf)
         agg_data, gpb = self.aggregate_data(data, level=level)
-        # self.geodata_hasadna(df=agg_data, gpdf=gpdf.set_index('id'), centers=centers.rename(columns={'geometry': 'center'}), tag=tag)
+        self.geodata_hasadna(df=agg_data, gpdf=gpdf.set_index('id'), centers=centers.rename(columns={'geometry': 'center'}), tag=tag)
         agg_data = self.count_filter(agg_data=agg_data, level=level)
         agg_data = self.flatten_add_colors(agg_data, gpb=gpb)
         self.write_to_cache(agg_data, tag=tag)

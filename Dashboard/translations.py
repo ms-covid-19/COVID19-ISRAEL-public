@@ -8,6 +8,8 @@ level_options = {
 }
 
 layout_elements = {
+    'dashboard_title': {'eng': 'COVID-19 Questionnaire Dashboard',
+                        'heb': 'COVID-19 Questionnaire Dashboard'},
     'Data resolution': {'eng': 'Level of display',
                         'heb': 'רמת תצוגה'},
     'Color by': {'eng': 'Color by',

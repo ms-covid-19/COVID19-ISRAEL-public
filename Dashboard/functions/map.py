@@ -24,12 +24,13 @@ def build_map_px(df, polygons, loc_col, colorby, color_scale, opacity):
     return fig_choropleth
 
 
-def build_map(centers, geolayers, color_bar_dict):
+def build_map(centers, geolayers, color_bar_dict, lang):
     data = [
         dict(
             lat=centers["lat"],
             lon=centers["lon"],
             text=centers["hover"],
+            hoverinfo='text',
             type="scattermapbox",
             marker=color_bar_dict,
         )
@@ -120,6 +121,9 @@ def build_map(centers, geolayers, color_bar_dict):
     layout = dict(
         mapbox=dict(
             layers=geolayers, #list(geolayers.values()),
+            # style="open-street-map" if lang == 'heb' else "streets",
+            # accesstoken='pk.eyJ1IjoiZGtvbG9ib2siLCJhIjoiY2s4Y2w5ZzRwMG1zYjNobHZvMzlvNjFvaCJ9.93zlHHMTn2ehf3JRSDme9w',
+            # style="open-street-map",
             style="carto-positron",
             center=dict(lat=32.0853, lon=34.7818),
             zoom=6,
@@ -178,6 +182,6 @@ def load_figure(geolayers, centers, level, colorby, selected_date, lang):
     # newcolorby = " "
     # df = df.rename(columns={colorby: newcolorby})
     # fig = build_map_px(df=df, loc_col=loc_col, colorby=newcolorby, color_scale=color_scale, opacity=OPACITY)
-    fig = build_map(centers=centers, geolayers=geolayers, color_bar_dict=color_bar_dict)
+    fig = build_map(centers=centers, geolayers=geolayers, color_bar_dict=color_bar_dict, lang=lang)
     log_.info('Done!')
     return fig

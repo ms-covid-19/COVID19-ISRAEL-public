@@ -4,17 +4,19 @@ import folium
 import geopandas as gpd
 import branca.colormap as cm
 
-from config import OUT_DIR, LAMAS_DATA, PROCESSED_DATA_DIR
-from src.utils.CONSTANTS import LAMAS_ID_COL, CITY_ID_COL, NEIGHBORHOOD_ID_COL, COLORS
+from config import OUT_DIR, LAMAS_DATA, PROCESSED_DATA_DIR, UNIFIED_FORMS_FILE
+from src.utils.CONSTANTS import LAMAS_ID_COL, CITY_ID_COL, NEIGHBORHOOD_ID_COL, COLORS, SYMPTOM_RATIO_WEIGHTED
 
 
-def create_map(data, color_col, map_name, colors=None, city_level=False, scale=True, english=False):
+def create_map(data, color_col, map_name, out_dir=OUT_DIR, colors=None, city_level=False, scale=True,
+               english=False, maoz=False):
     """
     Function to create an html map from given data.
     :param data: pandas DataFrame, must contain column given at color name, and an id column - either 'NEIGHBOR_ID'
     or 'CITY_ID'
     :param color_col: str, name of the column to color the map by
-    :param map_name: str, name of the map that will be saved to OUT_DIR
+    :param map_name: str, name of the map that will be saved to out_dir
+    :param out_dir: str, path to the outpur dir where the map will be saved
     :param colors: list, list of colors that will be used to build the map. If None the colors used are:
     green_to_purple = ['#bae4b3', '#74c476', '#6baed6', '#c51b8a', '#7a0177']
     :param city_level: bool, whether the map is in city or neighborhood level. Default is False. T
@@ -22,6 +24,7 @@ def create_map(data, color_col, map_name, colors=None, city_level=False, scale=T
     :param scale: bool, whether to scale the color_col column before drawing the map. Scaling will be done by dividing
     by the max value and multiplying by 100. Default is True.
     :param english: bool, preferred language of the background map. Defulat is False meaning the map will be in Hebrew/
+    :param maoz: bool, indicates whether we are creating data from maoz files, default is False
     :return: Html map will be saved to the OUT_DIR
     """
 
@@ -30,8 +33,15 @@ def create_map(data, color_col, map_name, colors=None, city_level=False, scale=T
     if scale:
         data_map[color_col] = (data_map[color_col] / (data_map[color_col].max())) * 100
     color_col_cat = '{}_cat'.format(color_col)
-    data_map[color_col_cat] = pd.qcut(data_map[color_col].values, 10, duplicates='drop', labels=[1, 2, 3, 4, 5, 6,
-                                                                                                 7, 8, 9, 10])
+    if maoz:
+        import numpy as np
+        data_map['tmp'] = pd.qcut(data_map[color_col].values, 5, duplicates='drop')
+        cat_number = data_map['tmp'].nunique()
+        data_map[color_col_cat] = pd.qcut(data_map[color_col].values, 5, duplicates='drop',
+                                          labels=list(np.arange(1, cat_number + 1)))
+        data_map.drop(['tmp'], axis=1, inplace=True)
+    else:
+        data_map[color_col_cat] = pd.qcut(data_map[color_col].values, 5, duplicates='drop', labels=[1, 2, 3, 4, 5])
 
     if colors:
         color_map = cm.LinearColormap(colors, vmin=data_map[color_col_cat].min(), vmax=data_map[color_col_cat].max())
@@ -66,10 +76,22 @@ def create_map(data, color_col, map_name, colors=None, city_level=False, scale=T
                    },).add_to(output_map)
 
     color_map.add_to(output_map)
-    output_map.save(os.path.join(OUT_DIR, '{}.html'.format(map_name)))
+    output_map.save(os.path.join(out_dir, '{}.html'.format(map_name)))
 
 
 if __name__ == "__main__":
-    data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'GT_city_id_2020-03-24.csv'))
-    data.rename(columns={'city_id': 'CITY_ID'}, inplace=True)
-    create_map(data, 'Next day - questionnaires', 'city_true', city_level=True)
+    from datetime import datetime
+    data = pd.read_csv(UNIFIED_FORMS_FILE)
+    data['timestamp'] = pd.to_datetime(data['timestamp'])
+    lower_cut_date = pd.Timestamp(2020, 3, 30)
+    upper_cut_date = pd.Timestamp(2020, 4, 6)
+    data = data[(data['timestamp'] > lower_cut_date) & (data['timestamp'] < upper_cut_date)]
+
+    data_neighborhoods = pd.DataFrame(data.groupby([NEIGHBORHOOD_ID_COL])[SYMPTOM_RATIO_WEIGHTED].agg({'mean', 'count'})).reset_index()
+    data_neighborhoods.rename(columns={'mean': SYMPTOM_RATIO_WEIGHTED}, inplace=True)
+    data_neighborhoods = data_neighborhoods[data_neighborhoods['count'] > 30]
+    create_map(data_neighborhoods, SYMPTOM_RATIO_WEIGHTED, 'neighborhoods_SR_{}'.format(datetime.now().strftime("%d%m%Y")))
+
+
+
+

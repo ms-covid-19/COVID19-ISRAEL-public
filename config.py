@@ -2,6 +2,7 @@
 import os
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+GITHUB_DATA_DIR = os.path.join(os.path.dirname(__file__), 'github-data')
 DASH_CACHE_DIR = os.path.join(DATA_DIR, 'dashboard_cache')
 
 RAW_DATA_DIR = os.path.join(DATA_DIR, 'Raw')

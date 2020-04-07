@@ -10,9 +10,11 @@ from config import DASH_CACHE_DIR
 from src.utils.CONSTANTS import COLORS
 
 min_date = pd.to_datetime('2020-03-17')
+# max_date = pd.Timestamp.today().normalize()
 max_date = pd.Timestamp.today().normalize() - pd.Timedelta(days=1)
 
 LANGUAGE = 'heb'
+html_align_dict = {'heb': 'right', 'eng': 'left'}
 
 MIN_OBSERVATIONS_CITY = 500
 MIN_OBSERVATIONS_NEIGHBORHOOD = 100
