@@ -148,27 +148,36 @@ class DashCacheGenerator(object):
         df.index.names = ['id', 'date']
         df = gpdf.join(df).join(centers).reset_index()
         df['count'] = df['count'].fillna(0)
-        quant_trans = lambda ser: ((ser - ser.quantile(0.05)) / ser.quantile(0.95)).clip(0, 1)
-        df['factor_relnum'] = df['count'] / df['population']
-        df['factor_variance'] = 1 / np.exp(-(df['std']) / 100)
-        df['confidence'] = quant_trans(df['factor_relnum'] * df['factor_variance'])
-        df['confidence'] = df['confidence'].fillna(0)
-        df['mean'] = df['mean'] / 100
+        if tag == 'city':
+            cond0 = df['count'] < 100
+        elif tag == 'neighborhood':
+            cond0 = df['count'] < 10
+        else:
+            raise ValueError("tag is not recognized!")
+        cond05 = ~cond0 & (df['count'] / df['population'] < 0.01)
+        df['confidence'] = 1
+        df.loc[cond0, 'confidence'] = 0
+        df.loc[cond05, 'confidence'] = 0.5
+        # quant_trans = lambda ser: ((ser - ser.quantile(0.05)) / ser.quantile(0.95)).clip(0, 1)
+        # df['factor_relnum'] = df['count'] / df['population']
+        # df['factor_variance'] = 1 / np.exp(-(df['std']) / 100)
+        # df['confidence'] = quant_trans(df['factor_relnum'] * df['factor_variance'])
+        # df['confidence'] = df['confidence'].fillna(0)
+        # df['mean'] = df['mean'] / 100
         df = df.rename(columns={'confidence': 'latest_confidence',
                                 'mean': 'latest_ratio',
                                 'count': 'latest_reports',
                                 })
-        valid_cols = ['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports', 'center', 'geometry']
+        valid_cols = ['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports', 'population', 'center', 'geometry']
         df = df.filter(valid_cols)
-        df[['latest_ratio', 'latest_confidence']] = (df[['latest_ratio', 'latest_confidence']] * 100).round()
+        # df[['latest_ratio', 'latest_confidence']] = (df[['latest_ratio', 'latest_confidence']] * 100).round()
         log_.info('geopandas shape {}'.format(df.shape))
         # gpd.GeoDataFrame(df).to_file(os.path.join(DASH_CACHE_DIR, tag + '_hasadna.json'), driver="GeoJSON")
         # with open(os.path.join(DASH_CACHE_DIR, tag + '_hasadna2.json'), 'w') as f:
         #     f.write(gpd.GeoDataFrame(df).to_json())
        #  df.query('city_eng == "JERUSALEM"')[['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports',
        # 'geometry']].to_file(os.path.join(DASH_CACHE_DIR, tag + '_test.geojson'), driver="GeoJSON")
-        df = df.query("id != 1")
-        df[['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports',
+        df[['id', 'city_eng', 'population', 'latest_ratio', 'latest_confidence', 'latest_reports',
        'geometry']].to_file(os.path.join(DASH_CACHE_DIR, tag + '_hasadna.geojson'), driver="GeoJSON")
        #  gpd.GeoDataFrame(df[['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports',
        # 'center']]).to_file(os.path.join(DASH_CACHE_DIR, tag + '_centers_hasadna.json'), driver="GeoJSON")
@@ -221,6 +230,7 @@ class DashCacheGenerator(object):
 
     @staticmethod
     def process_lamas(gpdf):
+        gpdf = gpdf.query('population > 0')
         gpdf['geometry'] = gpdf['geometry'].apply(lambda x: x.buffer(0))
         centers = gpdf.set_index('id')[['geometry']]
         centers = ProcessedData.add_city_name(centers)
