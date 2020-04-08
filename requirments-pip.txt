@@ -16,3 +16,7 @@ google-auth-httplib2
 google-auth-oauthlib
 wget
 folium
+psutil
+pyarrow
+sklearn
+#plotly-orca  # Fails
