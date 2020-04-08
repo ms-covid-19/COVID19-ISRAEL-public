@@ -7,6 +7,7 @@ from datetime import datetime
 
 
 from config import OUT_DIR, LAMAS_DATA, UNIFIED_FORMS_FILE, HAMAGEN_DATA, PATIENTS_PROCESSED_DIR
+from src.train.constants import DATE_COL, TIME_COL
 from src.utils.CONSTANTS import LAMAS_ID_COL, CITY_ID_COL, NEIGHBORHOOD_ID_COL, SYMPTOM_RATIO
 
 
@@ -17,10 +18,16 @@ def load_unified_forms() -> DataFrame:
 
     data = pd.read_csv(UNIFIED_FORMS_FILE, index_col=0, low_memory=False)
 
+    data[DATE_COL] = [TIME_COL].apply(lambda x: x.split('T')[0])
+
     data['datetime'] = data.timestamp.map(
         lambda r: datetime.strptime(r, '%Y-%m-%dT%H:%M:%S'))
     data['date_int'] = (data.datetime - REF_DATETIME).days
     data['date_num'] = (data.datetime - REF_DATETIME).total_seconds() / (24 * 3600)
+
+    all_data_df = all_data_df[(all_data_df['age'].astype(float) > 0) & (all_data_df['age'].astype(float) < 100)]
+    all_data_df['gender'] = (all_data_df['gender'] == 'M').astype(int) # todo change column names to constants from Amit
+    all_data_df = all_data_df[all_data_df[agg_col].notnull()]
 
     return data
 
