@@ -28,5 +28,7 @@ LAMAS_DATA = os.path.join(DATA_DIR, 'Lamas')
 LAMAS_NEIGHBERHOOD_DATA = os.path.join(LAMAS_DATA, 'neighborhoods_lms_features.csv')
 LAMAS_CITIES_DATA = os.path.join(LAMAS_DATA, 'cities_lms_features.csv')
 
+HAMAGEN_DATA = os.path.join(DATA_DIR, 'Hamagen')
+
 OUT_DIR = os.path.join(os.path.dirname(__file__), 'out')
 
