@@ -42,37 +42,37 @@ class DashCacheGenerator(object):
         self.cache_city(data)
         self.cache_neighborhood(data)
 
-    @staticmethod
-    def cache_hasadna(df):
-        df = ProcessedData.add_city_name(df).set_index(['city_heb', 'city_eng'], append=True)\
-            .reorder_levels(['city_id', 'city_heb', 'city_eng', 'neighborhood_id', 'date', 'time'])
-        symptom_ratio_wei_norm = df[MAIN_FEATURE]
-
-        def cache_date(gdf, folder, fn=None):
-            gdf = gdf.reset_index()
-            if fn is None:
-                fn = (ANCHOR_DATE + pd.Timedelta(days=gdf['date'].iloc[0])).strftime(format="%Y-%m-%d")
-            gdf.rename(columns={'mean': 'prediction'}).to_csv(os.path.join(PROCESSED_DATA_DIR, 'hasadna', folder, fn + '.csv'), index=False)
-
-        def cache_gb(gpb, folder, daily_threshold=50):
-            symptom_ratio_wei_norm_agg = gpb.agg(['mean', 'count'])
-            symptom_ratio_wei_norm_agg['confidence'] = 1 - np.sqrt((4 * gpb.var(ddof=0)))
-            symptom_ratio_wei_norm_agg.loc[symptom_ratio_wei_norm_agg['count'] == 1, 'confidence'] = 0
-            # symptom_ratio_wei_norm_agg = symptom_ratio_wei_norm_agg[symptom_ratio_wei_norm_agg >= daily_threshold]#.reindex(symptom_ratio_wei_norm_agg.index)
-            symptom_ratio_wei_norm_agg.groupby('date').apply(lambda ddf: cache_date(ddf, folder=folder))
-            ld = symptom_ratio_wei_norm_agg.index.get_level_values('date').max()
-            cache_date(symptom_ratio_wei_norm_agg.query("date == @ld"), folder=folder, fn='latest')
-
-        cache_gb(symptom_ratio_wei_norm.groupby(['date', 'city_id', 'city_heb', 'city_eng']), folder='city', daily_threshold=50)
-        cache_gb(symptom_ratio_wei_norm.groupby(['date', 'neighborhood_id']), folder='neighborhood', daily_threshold=10)
-
-
-        pass
+    # @staticmethod
+    # def cache_hasadna(df):
+    #     df = ProcessedData.add_city_name(df).set_index(['city_heb', 'city_eng'], append=True)\
+    #         .reorder_levels(['city_id', 'city_heb', 'city_eng', 'neighborhood_id', 'date', 'time'])
+    #     symptom_ratio_wei_norm = df[MAIN_FEATURE]
+    #
+    #     def cache_date(gdf, folder, fn=None):
+    #         gdf = gdf.reset_index()
+    #         if fn is None:
+    #             fn = (ANCHOR_DATE + pd.Timedelta(days=gdf['date'].iloc[0])).strftime(format="%Y-%m-%d")
+    #         gdf.rename(columns={'mean': 'prediction'}).to_csv(os.path.join(PROCESSED_DATA_DIR, 'hasadna', folder, fn + '.csv'), index=False)
+    #
+    #     def cache_gb(gpb, folder, daily_threshold=50):
+    #         symptom_ratio_wei_norm_agg = gpb.agg(['mean', 'count'])
+    #         symptom_ratio_wei_norm_agg['confidence'] = 1 - np.sqrt((4 * gpb.var(ddof=0)))
+    #         symptom_ratio_wei_norm_agg.loc[symptom_ratio_wei_norm_agg['count'] == 1, 'confidence'] = 0
+    #         # symptom_ratio_wei_norm_agg = symptom_ratio_wei_norm_agg[symptom_ratio_wei_norm_agg >= daily_threshold]#.reindex(symptom_ratio_wei_norm_agg.index)
+    #         symptom_ratio_wei_norm_agg.groupby('date').apply(lambda ddf: cache_date(ddf, folder=folder))
+    #         ld = symptom_ratio_wei_norm_agg.index.get_level_values('date').max()
+    #         cache_date(symptom_ratio_wei_norm_agg.query("date == @ld"), folder=folder, fn='latest')
+    #
+    #     cache_gb(symptom_ratio_wei_norm.groupby(['date', 'city_id', 'city_heb', 'city_eng']), folder='city', daily_threshold=50)
+    #     cache_gb(symptom_ratio_wei_norm.groupby(['date', 'neighborhood_id']), folder='neighborhood', daily_threshold=10)
+    #
+    #
+    #     pass
 
     def process_data(self, data):
         # data = ProcessedData.convert_new_processed_bot_and_questionnaire(data)
         data = ProcessedData.convert_processed_united(data)
-        self.cache_hasadna(data)
+        # self.cache_hasadna(data)
         data[features_to_perc] = data[features_to_perc] * 100
         return data
 
@@ -148,28 +148,35 @@ class DashCacheGenerator(object):
         df.index.names = ['id', 'date']
         df = gpdf.join(df).join(centers).reset_index()
         df['count'] = df['count'].fillna(0)
-        quant_trans = lambda ser: ((ser - ser.quantile(0.05)) / ser.quantile(0.95)).clip(0, 1)
-        df['factor_relnum'] = df['count'] / df['population']
-        df['factor_variance'] = 1 / np.exp(-(df['std']) / 100)
-        df['confidence'] = quant_trans(df['factor_relnum'] * df['factor_variance'])
-        df['confidence'] = df['confidence'].fillna(0)
-        df['mean'] = df['mean'] / 100
+        df['mean'] = df['mean'].round(1)
+        if tag == 'city':
+            thresh05 = 50
+            thresh1 = 500
+        elif tag == 'neighborhood':
+            thresh05 = 50
+            thresh1 = 250
+        else:
+            raise ValueError("tag is not recognized!")
+        cond0 = df['count'] < thresh05
+        cond05 = df['count'].between(thresh05, thresh1)
+        df['confidence'] = 1
+        df.loc[cond0, 'confidence'] = 0
+        df.loc[cond05, 'confidence'] = 0.5
+        log_.info("confidence value counts: {}".format(df['confidence'].value_counts()))
         df = df.rename(columns={'confidence': 'latest_confidence',
                                 'mean': 'latest_ratio',
                                 'count': 'latest_reports',
                                 })
-        valid_cols = ['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports', 'center', 'geometry']
+        valid_cols = ['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports', 'population', 'geometry']
         df = df.filter(valid_cols)
-        df[['latest_ratio', 'latest_confidence']] = (df[['latest_ratio', 'latest_confidence']] * 100).round()
+        # df[['latest_ratio', 'latest_confidence']] = (df[['latest_ratio', 'latest_confidence']] * 100).round()
         log_.info('geopandas shape {}'.format(df.shape))
         # gpd.GeoDataFrame(df).to_file(os.path.join(DASH_CACHE_DIR, tag + '_hasadna.json'), driver="GeoJSON")
         # with open(os.path.join(DASH_CACHE_DIR, tag + '_hasadna2.json'), 'w') as f:
         #     f.write(gpd.GeoDataFrame(df).to_json())
        #  df.query('city_eng == "JERUSALEM"')[['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports',
        # 'geometry']].to_file(os.path.join(DASH_CACHE_DIR, tag + '_test.geojson'), driver="GeoJSON")
-        df = df.query("id != 1")
-        df[['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports',
-       'geometry']].to_file(os.path.join(DASH_CACHE_DIR, tag + '_hasadna.geojson'), driver="GeoJSON")
+        df.to_file(os.path.join(DASH_CACHE_DIR, tag + '_hasadna.geojson'), driver="GeoJSON")
        #  gpd.GeoDataFrame(df[['id', 'city_eng', 'latest_ratio', 'latest_confidence', 'latest_reports',
        # 'center']]).to_file(os.path.join(DASH_CACHE_DIR, tag + '_centers_hasadna.json'), driver="GeoJSON")
 
@@ -220,10 +227,12 @@ class DashCacheGenerator(object):
         return gpdf
 
     @staticmethod
-    def process_lamas(gpdf):
+    def process_lamas(gpdf, tag):
+        gpdf = gpdf.query('population > 0')
         gpdf['geometry'] = gpdf['geometry'].apply(lambda x: x.buffer(0))
         centers = gpdf.set_index('id')[['geometry']]
-        centers = ProcessedData.add_city_name(centers)
+        if tag == 'city':
+            centers = ProcessedData.add_city_name(centers)
         centers['geometry'] = centers['geometry'].centroid
         return gpdf, centers
 
@@ -233,7 +242,7 @@ class DashCacheGenerator(object):
             gpdf = self.read_lamas_city()
         else:
             gpdf = self.read_lamas_neighborhood()
-        gpdf, centers = self.process_lamas(gpdf)
+        gpdf, centers = self.process_lamas(gpdf, tag=tag)
         agg_data, gpb = self.aggregate_data(data, level=level)
         self.geodata_hasadna(df=agg_data, gpdf=gpdf.set_index('id'), centers=centers.rename(columns={'geometry': 'center'}), tag=tag)
         agg_data = self.count_filter(agg_data=agg_data, level=level)
