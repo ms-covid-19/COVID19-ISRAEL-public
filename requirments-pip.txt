@@ -19,4 +19,5 @@ folium
 psutil
 pyarrow
 sklearn
+matplotlib
 #plotly-orca  # Fails

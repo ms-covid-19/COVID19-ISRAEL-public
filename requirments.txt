@@ -20,3 +20,4 @@ psutil
 plotly-orca
 pyarrow
 sklearn
+matplotlib

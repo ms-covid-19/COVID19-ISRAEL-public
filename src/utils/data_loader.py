@@ -2,13 +2,16 @@ import os
 import json
 import glob
 from typing import Optional, List
-
 import pandas as pd
+import geopandas as gpd
+
+from geopandas import GeoDataFrame
 from pandas import DataFrame
 from datetime import datetime
 
 
-from config import OUT_DIR, LAMAS_DATA, UNIFIED_FORMS_FILE, HAMAGEN_DATA, PATIENTS_PROCESSED_DIR
+from config import OUT_DIR, LAMAS_DATA, UNIFIED_FORMS_FILE, HAMAGEN_DATA, PATIENTS_PROCESSED_DIR, \
+    GENERAL_CACHE_DIR
 from src.train.constants import DATE_COL, TIME_COL
 from src.utils.CONSTANTS import LAMAS_ID_COL, CITY_ID_COL, NEIGHBORHOOD_ID_COL, SYMPTOM_RATIO
 
@@ -97,3 +100,30 @@ def load_confirmed_patients_by_cities_mar_two_dates(
     data.set_index('City_En', inplace=True)
 
     return data
+
+
+def load_lamas_data(cache_file_name_prefix: Optional[str] = GENERAL_CACHE_DIR + r'\cities_lms_cache',
+                    reset_cache_flag: bool = False) -> GeoDataFrame:
+    """
+
+    Args:
+        cache_file_name_prefix: If not None, use it for caching the results (should be full path here)
+        reset_cache_flag: If True, don't read from cache (but write if cache_file_name is not None)
+
+    Returns: DataFrame with lamas data per city
+
+    """
+    cache_file_name = cache_file_name_prefix + '.zip'
+    if not reset_cache_flag and cache_file_name is  not None and os.path.exists(cache_file_name):
+        return pd.read_pickle(cache_file_name)
+
+    cities_gpd = gpd.read_file(os.path.join(LAMAS_DATA, 'yishuvimdemog2012.shp'), encoding='utf-8')
+    # create demographic features only for cities we have population number for
+    cities_gpd = cities_gpd[cities_gpd.Pop_Total > 0]
+    cities_gpd['City_En'] = cities_gpd.SHEM_YIS_1
+    # TODO: Here do more computations such as density
+
+    if cache_file_name is not None:
+        cities_gpd.to_pickle(cache_file_name)
+
+    return cities_gpd
