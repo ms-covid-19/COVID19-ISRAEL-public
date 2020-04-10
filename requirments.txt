@@ -3,6 +3,7 @@
 
 # On anaconda:
 # conda install -c conda-forge libspatialindex
+# conda install -c plotly plotly-orca
 
 dash
 geocoder
@@ -11,11 +12,12 @@ googlemaps
 Rtree==0.8.3
 geopandas==0.6.1
 GDAL==2.3.3
-libspatialindex==1.9.3
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
 wget
 psutil
-plotly-orca
 pyarrow
+plotly
+plotly-orca
+libspatialindex==1.9.3
