@@ -21,3 +21,5 @@ pyarrow
 plotly
 plotly-orca
 libspatialindex==1.9.3
+sklearn
+matplotlib

@@ -4,6 +4,7 @@ import os
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 GITHUB_DATA_DIR = os.path.join(os.path.dirname(__file__), 'github-data')
 DASH_CACHE_DIR = os.path.join(DATA_DIR, 'dashboard_cache')
+GENERAL_CACHE_DIR = os.path.join(DATA_DIR, 'general_cache')
 
 RAW_DATA_DIR = os.path.join(DATA_DIR, 'Raw')
 PROCESSED_DATA_DIR = os.path.join(DATA_DIR, 'Processed')
@@ -28,5 +29,9 @@ LAMAS_DATA = os.path.join(DATA_DIR, 'Lamas')
 LAMAS_NEIGHBERHOOD_DATA = os.path.join(LAMAS_DATA, 'neighborhoods_lms_features.csv')
 LAMAS_CITIES_DATA = os.path.join(LAMAS_DATA, 'cities_lms_features.csv')
 
+HAMAGEN_DATA = os.path.join(DATA_DIR, 'Hamagen')
+
 OUT_DIR = os.path.join(os.path.dirname(__file__), 'out')
 
+if not os.path.exists(GENERAL_CACHE_DIR):
+    os.makedirs(GENERAL_CACHE_DIR, exist_ok=True)

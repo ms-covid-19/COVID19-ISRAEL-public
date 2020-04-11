@@ -1,0 +1,23 @@
+# 1. pip install -r pip-requirments.txt
+# 2. download libspatialindex binaries into "[your-env-dir]/site-packages/rtree":
+#   https://github.com/ms-covid-19/COVID19-ISRAEL-public/releases/download/dep/spatialindex-64.dll
+#   https://github.com/ms-covid-19/COVID19-ISRAEL-public/releases/download/dep/spatialindex_c.dll
+
+https://github.com/ms-covid-19/COVID19-ISRAEL-public/releases/download/dep/Fiona-1.8.13-cp38-cp38-win_amd64.whl
+https://github.com/ms-covid-19/COVID19-ISRAEL-public/releases/download/dep/GDAL-3.0.4-cp38-cp38-win_amd64.whl
+dash
+geocoder
+shapely
+googlemaps
+Rtree==0.8.3
+geopandas==0.6.1
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+wget
+folium
+psutil
+pyarrow
+sklearn
+matplotlib
+#plotly-orca  # Fails

@@ -14,7 +14,7 @@ LMS_65_up_PERC = 'lms_65_up_perc'
 LMS_0_14_PERC = 'lms_0_14_perc'
 LMS_15_19_PERC = 'lms_15_19_perc'
 LMS_20_29_PERC = 'lms_20_29_perc'
-LMS_30_64_PERC = 'lms_30_64_prc'
+LMS_30_64_PERC = 'lms_30_64_perc'
 
 # Lamas features - neighborhood
 LMS_0_17_PERC = 'lms_0_17_perc'
