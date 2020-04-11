@@ -3,6 +3,7 @@
 See main for usage example.
 """
 import csv
+import time
 from enum import Enum, auto
 from typing import Dict, Set
 
@@ -108,7 +109,7 @@ def _unpack_lists(a):
 
 
 def _enum_columns_from_set(s: Set, enum_class) -> Dict:
-    return {enum_to_column(x): (1 if x in s else 0)
+    return {_enum_to_column_mapping[x]: (1 if x in s else 0)
             for x in enum_class}
 
 
@@ -142,12 +143,30 @@ def convert_file(in_file, out_file, convert_dict_func, hebrew=False):
 # TODO: Add form languages.
 
 _output_fields = ['timestamp', 'age', 'gender', 'city', 'street', 'zip_code',
-                  'body_temp', 'lat', 'lng', 'source'] + \
+                  'body_temp', 'lat', 'lng', 'source', 'medical_staff_member'] + \
                  _enum_to_columns(Symptom) + \
                  _enum_to_columns(Condition) + \
                  _enum_to_columns(Smoking) + \
                  _enum_to_columns(Isolation) + \
                  _enum_to_columns(PatientLocation)
+
+_enum_to_column_mapping = {
+    e: enum_to_column(e)
+    for e in
+    list(Symptom) + list(Condition) + list(Smoking)
+    + list(Isolation) + list(PatientLocation)
+}
+
+_gender_mapping = {
+    '0': 'M',
+    '1': 'F',
+    'Male': 'M',
+    'Female': 'F',
+    'זכר': 'M',
+    'נקבה': 'F',
+    'Мужской': 'M',
+    'Женский': 'F',
+}
 
 _form_field_mapping = {
     'Timestamp': 'timestamp',
@@ -261,6 +280,25 @@ _form_isolation_mapping = {
     'потому что был в контакте с человеком': Isolation.CONTACT_WITH_PATIENT,
 }
 
+# Hebrew for has duplicated column names (isolation and smoking)
+# so we need to rename them.
+_form_hebrew_columns = [
+    'Timestamp',
+    'גיל',
+    'מין',
+    'מיקוד כתובת המגורים ',
+    'מדידת חום',
+    'האם את/ה סובל/ת מאחד התסמינים הבאים',
+    'עיר / יישוב מגורים',
+    'עישון',
+    'רחוב מגורים',
+    'האם אתה מאובחן כסובל מאחת מהמחלות הבאות: סוכרת, יתר לחץ דם, מחלת לב איסכמית, אסטמה, מחלת ריאות כרונית, אי ספיקת כליות כרונית',
+    '',
+    'בידוד',
+    'עיר / ישוב מגורים',
+    'Email Address',
+]
+
 _bot_smoking_mapping = {
     '0': Smoking.NEVER,
     '1': [Smoking.PAST_MORE_THAN_FIVE_YEARS_AGO, Smoking.PAST],
@@ -316,36 +354,6 @@ _bot_location_mapping = {
     '3': PatientLocation.HOSPITAL,
     '4': PatientLocation.HOSPITAL,
     '5': PatientLocation.RECOVERED,
-}
-
-# Hebrew for has duplicated column names (isolation and smoking)
-# so we need to rename them.
-_form_hebrew_columns = [
-    'Timestamp',
-    'גיל',
-    'מין',
-    'מיקוד כתובת המגורים ',
-    'מדידת חום',
-    'האם את/ה סובל/ת מאחד התסמינים הבאים',
-    'עיר / יישוב מגורים',
-    'עישון',
-    'רחוב מגורים',
-    'האם אתה מאובחן כסובל מאחת מהמחלות הבאות: סוכרת, יתר לחץ דם, מחלת לב איסכמית, אסטמה, מחלת ריאות כרונית, אי ספיקת כליות כרונית',
-    '',
-    'בידוד',
-    'עיר / ישוב מגורים',
-    'Email Address',
-]
-
-_gender_mapping = {
-    '0': 'M',
-    '1': 'F',
-    'Male': 'M',
-    'Female': 'F',
-    'זכר': 'M',
-    'נקבה': 'F',
-    'Мужской': 'M',
-    'Женский': 'F',
 }
 
 
@@ -414,6 +422,8 @@ def convert_bot_dict(d: Dict) -> Dict:
 
 
 def _main():
+    t = time.monotonic()
+
     # Convert google form.
     print('Converting google form')
     convert_file('../../data/Raw/forms/COVID-19-English.csv',
@@ -422,9 +432,11 @@ def _main():
 
     # Convert bot file.
     print('Converting bot file')
-    convert_file('../../data/Raw/forms/COVID-19-Bot.csv',
+    convert_file('../../data/Raw/forms/COVID-19-Bot-0404.csv',
                  '../../data/Raw/forms/test_unify_forms_bot.csv',
                  convert_bot_dict)
+
+    print('Took {:.1f}s'.format(time.monotonic() - t))
 
 
 if __name__ == '__main__':

@@ -9,7 +9,7 @@ import numpy as np
 
 from Dashboard.data import COLORS, features_to_perc, NDAYS_SMOOTHING, MIN_OBSERVATIONS_CITY, \
     MIN_OBSERVATIONS_NEIGHBORHOOD
-from config import DASH_CACHE_DIR, LAMAS_DATA, PROCESSED_DATA_DIR
+from config import DASH_CACHE_DIR, LAMAS_DATA, PROCESSED_DATA_DIR, PROCESSED_DATA_MAOZ_DIR
 from src.utils.processed_data_class import ProcessedData, ANCHOR_DATE
 
 log_ = logging.getLogger(__name__)
@@ -28,7 +28,9 @@ class DashCacheGenerator(object):
         #                    low_memory=False)
         data = pd.read_csv(os.path.join(PROCESSED_DATA_DIR, 'forms', 'all_forms.csv'), index_col=0,
                            low_memory=False)
-
+        maoz_data = pd.read_csv(os.path.join(PROCESSED_DATA_MAOZ_DIR, 'maoz_all_processed.csv'), index_col=0,
+                           low_memory=False)
+        data = self.unite_forms_maoz(forms_df=data, maoz_df=maoz_data)
         # tmp = data.copy()
         # tmp = tmp.query("City_En=='HOLON'")
         # tmp['timestamp'] = pd.to_datetime(tmp['timestamp'])
@@ -42,32 +44,9 @@ class DashCacheGenerator(object):
         self.cache_city(data)
         self.cache_neighborhood(data)
 
-    # @staticmethod
-    # def cache_hasadna(df):
-    #     df = ProcessedData.add_city_name(df).set_index(['city_heb', 'city_eng'], append=True)\
-    #         .reorder_levels(['city_id', 'city_heb', 'city_eng', 'neighborhood_id', 'date', 'time'])
-    #     symptom_ratio_wei_norm = df[MAIN_FEATURE]
-    #
-    #     def cache_date(gdf, folder, fn=None):
-    #         gdf = gdf.reset_index()
-    #         if fn is None:
-    #             fn = (ANCHOR_DATE + pd.Timedelta(days=gdf['date'].iloc[0])).strftime(format="%Y-%m-%d")
-    #         gdf.rename(columns={'mean': 'prediction'}).to_csv(os.path.join(PROCESSED_DATA_DIR, 'hasadna', folder, fn + '.csv'), index=False)
-    #
-    #     def cache_gb(gpb, folder, daily_threshold=50):
-    #         symptom_ratio_wei_norm_agg = gpb.agg(['mean', 'count'])
-    #         symptom_ratio_wei_norm_agg['confidence'] = 1 - np.sqrt((4 * gpb.var(ddof=0)))
-    #         symptom_ratio_wei_norm_agg.loc[symptom_ratio_wei_norm_agg['count'] == 1, 'confidence'] = 0
-    #         # symptom_ratio_wei_norm_agg = symptom_ratio_wei_norm_agg[symptom_ratio_wei_norm_agg >= daily_threshold]#.reindex(symptom_ratio_wei_norm_agg.index)
-    #         symptom_ratio_wei_norm_agg.groupby('date').apply(lambda ddf: cache_date(ddf, folder=folder))
-    #         ld = symptom_ratio_wei_norm_agg.index.get_level_values('date').max()
-    #         cache_date(symptom_ratio_wei_norm_agg.query("date == @ld"), folder=folder, fn='latest')
-    #
-    #     cache_gb(symptom_ratio_wei_norm.groupby(['date', 'city_id', 'city_heb', 'city_eng']), folder='city', daily_threshold=50)
-    #     cache_gb(symptom_ratio_wei_norm.groupby(['date', 'neighborhood_id']), folder='neighborhood', daily_threshold=10)
-    #
-    #
-    #     pass
+    @staticmethod
+    def unite_forms_maoz(forms_df, maoz_df):
+        return forms_df.append(maoz_df.filter(forms_df.columns))
 
     def process_data(self, data):
         # data = ProcessedData.convert_new_processed_bot_and_questionnaire(data)

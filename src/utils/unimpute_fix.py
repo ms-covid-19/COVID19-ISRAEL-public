@@ -1,3 +1,6 @@
+import pandas as pd
+import numpy as np
+
 imputation_cols = ['symptom_well', 'symptom_not_well',
        'symptom_shortness_of_breath', 'symptom_runny_nose', 'symptom_cough',
        'symptom_fatigue', 'symptom_nausea_vomiting', 'symptom_muscle_pain',

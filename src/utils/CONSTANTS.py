@@ -9,6 +9,9 @@ AGE_THRESHOLD = 18
 BODY_TEMP_THRESHOLD = 38
 ##############################
 
+# patients col
+PATIENT_COL = 'confirmed_cases'
+
 # Column names
 FEEL_GOOD = 'Feel good'
 NAUSEA = 'Nausea and vomiting'

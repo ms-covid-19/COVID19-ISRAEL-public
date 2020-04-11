@@ -8,6 +8,7 @@ GENERAL_CACHE_DIR = os.path.join(DATA_DIR, 'general_cache')
 
 RAW_DATA_DIR = os.path.join(DATA_DIR, 'Raw')
 PROCESSED_DATA_DIR = os.path.join(DATA_DIR, 'Processed')
+PROCESSED_DATA_MAOZ_DIR = os.path.join(PROCESSED_DATA_DIR, 'maoz')
 NEW_PROCESSED_DATA_DIR = os.path.join(DATA_DIR, 'New processed')
 
 RAW_FORMS_DIR = os.path.join(RAW_DATA_DIR, 'forms')
@@ -22,6 +23,9 @@ BOT_PROCESSED_DIR = os.path.join(PROCESSED_DATA_DIR, 'Bot')
 
 PATIENTS_RAW_DIR = os.path.join(RAW_DATA_DIR, 'confirmed_patients')
 PATIENTS_PROCESSED_DIR = os.path.join(PROCESSED_DATA_DIR, 'confirmed_patients')
+PATIENTS_CITY_DATE_FILE = os.path.join(PATIENTS_PROCESSED_DIR,'patients_by_day_and_city_org.csv')
+PATIENTS_CITY_DATE_FILE_NON_ZERO = os.path.join(PATIENTS_PROCESSED_DIR,'patients_by_day_and_city_org_no_zero.csv')
+PATIENTS_CITY_DATE_FILE_SAAR = os.path.join(PATIENTS_PROCESSED_DIR,'patients_by_day_and_city_saar.csv')
 
 UTILITY_DATA = os.path.join(PROCESSED_DATA_DIR, 'utility')
 LAMAS_DATA = os.path.join(DATA_DIR, 'Lamas')
