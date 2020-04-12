@@ -41,7 +41,6 @@ class Condition(Enum):
     DIABETES = auto()
     HYPERTENTION = auto()
     ISCHEMIC_HEART_DISEASE = auto()
-    ASTHMA = auto()
     LUNG_DISEASE = auto()
     KIDNEY_DISEASE = auto()
     CANCER = auto()
@@ -356,6 +355,17 @@ _bot_location_mapping = {
     '5': PatientLocation.RECOVERED,
 }
 
+# TODO Values are inconsistent in this field.
+#  Need to talk with Ishai and have him fix that.
+_bot_medical_staff_mapping = {
+    '': '',
+    '{}': '',
+    'true': '1',
+    '1': '1',
+    '0': '0',
+    'false': '0',
+}
+
 
 def convert_form_dict(d: Dict) -> Dict:
     result = {_form_field_mapping[k]: v for k, v in d.items()}
@@ -396,6 +406,8 @@ def convert_bot_dict(d: Dict) -> Dict:
     result['gender'] = _gender_mapping[result['gender']]
     result['timestamp'] = unify_time(result['timestamp'])
     result['body_temp'] = result['temperature']  # Conform with output fields.
+    result['medical_staff_member'] = \
+        _bot_medical_staff_mapping[result.get('medical_staff_member', '')]
 
     symptoms = set(_unpack_lists(v for k, v in _bot_symptom_mapping.items()
                                  if result[k] == '1'))
@@ -432,7 +444,7 @@ def _main():
 
     # Convert bot file.
     print('Converting bot file')
-    convert_file('../../data/Raw/forms/COVID-19-Bot-0404.csv',
+    convert_file('../../data/Raw/forms/COVID-19-Bot-1004.csv',
                  '../../data/Raw/forms/test_unify_forms_bot.csv',
                  convert_bot_dict)
 
