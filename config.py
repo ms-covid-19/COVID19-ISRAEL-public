@@ -15,6 +15,9 @@ RAW_FORMS_DIR = os.path.join(RAW_DATA_DIR, 'forms')
 PROCESSED_FORMS_DIR = os.path.join(PROCESSED_DATA_DIR, 'forms')
 UNIFIED_FORMS_FILE = os.path.join(PROCESSED_FORMS_DIR, 'all_forms.csv')
 
+GOV_COVID19_DIR = os.path.join(DATA_DIR, 'GovCovid19')
+GOV_COVID19_TESTED_INDIVIDUALS_LATEST = 'corona_tested_individuals_ver_001.xlsx'
+
 GOOGLE_FORM_RAW_DIR = os.path.join(RAW_DATA_DIR, 'google_forms')
 GOOGLE_FORM_PROCESSED_DIR = os.path.join(PROCESSED_DATA_DIR, 'google_forms')
 
@@ -32,6 +35,7 @@ LAMAS_DATA = os.path.join(DATA_DIR, 'Lamas')
 
 LAMAS_NEIGHBERHOOD_DATA = os.path.join(LAMAS_DATA, 'neighborhoods_lms_features.csv')
 LAMAS_CITIES_DATA = os.path.join(LAMAS_DATA, 'cities_lms_features.csv')
+
 
 HAMAGEN_DATA = os.path.join(DATA_DIR, 'Hamagen')
 
