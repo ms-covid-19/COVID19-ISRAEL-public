@@ -20,4 +20,5 @@ psutil
 pyarrow
 sklearn
 matplotlib
+xlrd
 #plotly-orca  # Fails

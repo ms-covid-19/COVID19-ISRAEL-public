@@ -1,7 +1,8 @@
 import os
 import json
 import glob
-from typing import Optional, List
+import numpy as np
+from typing import Optional, List, Tuple
 import pandas as pd
 import geopandas as gpd
 
@@ -11,12 +12,22 @@ from datetime import datetime
 
 
 from config import OUT_DIR, LAMAS_DATA, UNIFIED_FORMS_FILE, HAMAGEN_DATA, PATIENTS_PROCESSED_DIR, \
-    GENERAL_CACHE_DIR
+    GENERAL_CACHE_DIR, GOV_COVID19_DIR, GOV_COVID19_TESTED_INDIVIDUALS_LATEST
 from src.train.constants import DATE_COL, TIME_COL
 from src.utils.CONSTANTS import LAMAS_ID_COL, CITY_ID_COL, NEIGHBORHOOD_ID_COL, SYMPTOM_RATIO
 
 
 REF_DATETIME = datetime.strptime('2020-03-01', '%Y-%m-%d')
+
+
+def get_all_symptoms_list() -> List:
+    return [
+        'symptom_shortness_of_breath', 'symptom_runny_nose', 'symptom_cough',
+        'symptom_fatigue', 'symptom_nausea_vomiting', 'symptom_muscle_pain',
+        'symptom_general_pain', 'symptom_sore_throat', 'symptom_cough_dry',
+        'symptom_cough_moist', 'symptom_headache', 'symptom_infirmity',
+        'symptom_diarrhea', 'symptom_stomach', 'symptom_fever',
+        'symptom_chills', 'symptom_confusion', 'symptom_smell_or_taste_loss']
 
 
 def load_unified_forms(agg_col: Optional[str] = None) -> DataFrame:
@@ -43,6 +54,21 @@ def load_unified_forms(agg_col: Optional[str] = None) -> DataFrame:
 
     if agg_col is not None:
         data = data[data[agg_col].notnull()]
+
+    data['symptom_any'] = np.any(data[get_all_symptoms_list()], axis=1)
+    data['symptom_ratio_weighted_sqr'] = data.symptom_ratio_weighted ** 2
+    data['body_temp_measured'] = (data.body_temp > 0)
+
+    age_group_map = {
+        'age_0_14': (0, 15),
+        'age_15_19': (15, 20),
+        'age_20_29': (20, 30),
+        'age_30_64': (30, 65),
+        'age_65_up': (65, 121)
+    }
+    data['age_group_lms_name'] = ''
+    for group_name, (age0, age1) in age_group_map.items():
+        data.loc[(data.age >= age0) & (data.age < age1), 'age_group_lms_name'] = group_name
 
     return data
 
@@ -127,3 +153,37 @@ def load_lamas_data(cache_file_name_prefix: Optional[str] = GENERAL_CACHE_DIR + 
         cities_gpd.to_pickle(cache_file_name)
 
     return cities_gpd
+
+
+def load_gov_covid19(filename: str = GOV_COVID19_TESTED_INDIVIDUALS_LATEST) -> DataFrame:
+    """
+
+    Args:
+        filename: Do not  include folder name)
+
+    Returns:
+
+    """
+    data = pd.read_excel(os.path.join(GOV_COVID19_DIR, filename))
+
+    # Post processing based on file name
+    if filename in ['corona_tested_individuals_ver_001.xlsx']:
+        data['corona_result'] = data.corona_result.map(
+            lambda r: {
+                'חיובי': 1,
+                'שלילי': 0,
+                'אחר': np.nan
+        }[r])
+        data['gender'] = data.gender.map(
+            lambda r: {
+                'זכר': 1,
+                'נקבה': 0,
+                np.nan: np.nan
+            }[r])
+        data['test_date_str'] = data.test_date.map(lambda r: r.strftime('%Y-%m-%d'))
+    elif filename in ['corona_lab_tests_ver002.xlsx']:
+        pass
+    else:
+        assert False  # Please add post-processing (or pass) elif branch above to handle this file
+
+    return data
